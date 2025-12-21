@@ -1,0 +1,39 @@
+{
+  "name": "@43081j/bench-js",
+  "version": "1.0.0",
+  "description": "Benchmarks.",
+  "keywords": [
+    "bench"
+  ],
+  "homepage": "https://github.com/43081j/bench-js#readme",
+  "bugs": {
+    "url": "https://github.com/43081j/bench-js/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/43081j/bench-js.git"
+  },
+  "license": "MIT",
+  "author": "James Garbutt (https://github.com/43081j)",
+  "type": "module",
+  "main": "lib/main.js",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "format": "prettier --write src",
+    "lint": "npm run lint:js && npm run lint:format",
+    "lint:js": "eslint src",
+    "lint:format": "prettier --check src"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.2",
+    "eslint": "^9.39.2",
+    "prettier": "^3.7.4",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.50.0",
+    "vitest": "^4.0.16"
+  },
+  "dependencies": {
+    "mitata": "^1.0.34"
+  }
+}
