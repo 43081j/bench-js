@@ -25,7 +25,7 @@ function isFunction(value: unknown): value is (...args: unknown[]) => unknown {
   return typeof value === 'function';
 }
 
-async function runSuite(suiteFile: string): Promise<void> {
+async function runSuite(suiteFile: string, useJson: boolean): Promise<void> {
   const suitePath = join(__dirname, 'benchmarks', suiteFile);
   const module = await import(suitePath);
 
@@ -41,14 +41,19 @@ async function runSuite(suiteFile: string): Promise<void> {
     bench(name, fn as () => void);
   }
 
-  await run({
-    format: 'json'
-  });
+  await run(
+    useJson
+      ? {
+          format: 'json'
+        }
+      : {}
+  );
 }
 
 async function main() {
   const args = process.argv.slice(2);
-  const suiteName = args[0];
+  const jsonFlag = args.includes('--json');
+  const suiteName = args.find((arg) => !arg.startsWith('--'));
 
   const suiteFiles = await getSuiteFiles(suiteName);
 
@@ -60,7 +65,7 @@ async function main() {
   }
 
   for (const suiteFile of suiteFiles) {
-    await runSuite(suiteFile);
+    await runSuite(suiteFile, jsonFlag);
   }
 }
 
