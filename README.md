@@ -12,6 +12,10 @@ used to justify rules in developer tooling such as the
 - [array-concat](./results/array-concat.md)
 - [array-from-set](./results/array-from-set.md)
 - [array-from](./results/array-from.md)
+- [array-includes-existing](./results/array-includes-existing.md)
+- [array-includes-missing](./results/array-includes-missing.md)
+- [string-includes-existing](./results/string-includes-existing.md)
+- [string-includes-missing](./results/string-includes-missing.md)
 
 <!-- /RESULTS -->
 
