@@ -3,6 +3,7 @@ import {readdir, readFile, writeFile} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import {join, basename} from 'node:path';
 import {stripVTControlCharacters} from 'node:util';
+import type {trial, ctx} from 'mitata';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
@@ -62,51 +63,51 @@ async function runBenchmark(
   });
 }
 
-interface ParsedTable {
-  header: string;
-  separator: string;
-  dataRows: string[];
+interface MitataResult {
+  benchmarks: trial[];
+  context: ctx;
 }
 
-function parseMarkdownTable(markdown: string, engineName: string): ParsedTable {
-  const lines = markdown.trim().split('\n');
-  const dataRows: string[] = [];
-  let header = '';
-  let separator = '';
-  let tableStartIndex = -1;
+interface BenchmarkRow {
+  engine: Engine;
+  benchmark: trial;
+}
 
-  for (let i = 0; i < lines.length; i++) {
-    if (lines[i].trim().startsWith('|')) {
-      tableStartIndex = i;
-      break;
-    }
+function parseJSONOutput(output: string): MitataResult | null {
+  const cleaned = stripVTControlCharacters(output);
+
+  // Filter out Node.js warnings and find the JSON line
+  const lines = cleaned.split('\n');
+  const jsonLine = lines.find((line) => {
+    const trimmed = line.trim();
+    return trimmed.startsWith('{') && trimmed.includes('"benchmarks"');
+  });
+
+  if (!jsonLine) {
+    return null;
   }
 
-  if (tableStartIndex === -1) {
-    return {header, separator, dataRows};
+  try {
+    return JSON.parse(jsonLine) as MitataResult;
+  } catch {
+    return null;
   }
+}
 
-  header = lines[tableStartIndex].trim();
+function formatTime(ns: number): string {
+  if (ns < 1000) return `${ns.toFixed(2)} ns`;
+  if (ns < 1000000) return `${(ns / 1000).toFixed(2)} µs`;
+  if (ns < 1000000000) return `${(ns / 1000000).toFixed(2)} ms`;
+  return `${(ns / 1000000000).toFixed(2)} s`;
+}
 
-  if (tableStartIndex + 1 < lines.length) {
-    separator = lines[tableStartIndex + 1].trim();
-  }
-
-  for (let i = tableStartIndex + 2; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (line.startsWith('|')) {
-      const columns = line
-        .split('|')
-        .map((col) => col.trim())
-        .filter((col) => col);
-      if (columns.length > 0) {
-        columns[0] = `${columns[0]} (${engineName})`;
-        dataRows.push(`| ${columns.join(' | ')} |`);
-      }
-    }
-  }
-
-  return {header, separator, dataRows};
+function formatBytes(bytes: number): string {
+  if (bytes < 1) return `${bytes.toFixed(4)} B`;
+  if (bytes < 1024) return `${bytes.toFixed(2)} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
+  if (bytes < 1024 * 1024 * 1024)
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }
 
 function formatResultsAsMarkdown(
@@ -119,21 +120,7 @@ function formatResultsAsMarkdown(
   for (const suite of suites) {
     markdown += `## ${suite}\n\n`;
 
-    let header = '';
-    let separator = '';
-
-    const firstResult = results.find((r) => r.suite === suite);
-    if (firstResult) {
-      // just in case
-      const cleanOutput = stripVTControlCharacters(firstResult.output);
-      const parsed = parseMarkdownTable(cleanOutput, 'temp');
-      header = parsed.header;
-      separator = parsed.separator;
-    }
-
-    if (header && separator) {
-      markdown += `${header}\n${separator}\n`;
-    }
+    const rows: BenchmarkRow[] = [];
 
     for (const engine of engines) {
       const result = results.find(
@@ -141,13 +128,64 @@ function formatResultsAsMarkdown(
       );
 
       if (result) {
-        const cleanOutput = stripVTControlCharacters(result.output);
-        const parsed = parseMarkdownTable(cleanOutput, engine);
-        markdown += parsed.dataRows.join('\n') + '\n';
+        const parsed = parseJSONOutput(result.output);
+        if (parsed?.benchmarks) {
+          for (const benchmark of parsed.benchmarks) {
+            rows.push({engine, benchmark});
+          }
+        }
       }
     }
 
+    // Sort by avg time ascending (fastest first)
+    rows.sort((a, b) => {
+      const aStats = a.benchmark.runs[0]?.stats;
+      const bStats = b.benchmark.runs[0]?.stats;
+      return (aStats?.avg ?? 0) - (bStats?.avg ?? 0);
+    });
+
+    // Generate timing table
+    markdown += '| benchmark | avg | min | p75 | p99 | max |\n';
+    markdown += '| :-------- | --: | --: | --: | --: | --: |\n';
+
+    for (const row of rows) {
+      const run = row.benchmark.runs[0];
+      if (!run?.stats) continue;
+
+      const nameWithEngine = `${run.name} (${row.engine})`;
+      const stats = run.stats;
+      markdown += `| ${nameWithEngine} | ${formatTime(stats.avg)} | ${formatTime(stats.min)} | ${formatTime(stats.p75)} | ${formatTime(stats.p99)} | ${formatTime(stats.max)} |\n`;
+    }
+
     markdown += '\n';
+
+    // Generate memory table if heap data is available
+    const rowsWithHeap = rows.filter(
+      (row) => row.benchmark.runs[0]?.stats?.heap
+    );
+    if (rowsWithHeap.length > 0) {
+      // Sort by avg heap usage ascending
+      rowsWithHeap.sort((a, b) => {
+        const aHeap = a.benchmark.runs[0]?.stats?.heap;
+        const bHeap = b.benchmark.runs[0]?.stats?.heap;
+        return (aHeap?.avg ?? 0) - (bHeap?.avg ?? 0);
+      });
+
+      markdown += '### Memory\n\n';
+      markdown += '| benchmark | avg | min | max | total |\n';
+      markdown += '| :-------- | --: | --: | --: | ----: |\n';
+
+      for (const row of rowsWithHeap) {
+        const run = row.benchmark.runs[0];
+        const heap = run?.stats?.heap;
+        if (!heap) continue;
+
+        const nameWithEngine = `${run.name} (${row.engine})`;
+        markdown += `| ${nameWithEngine} | ${formatBytes(heap.avg)} | ${formatBytes(heap.min)} | ${formatBytes(heap.max)} | ${formatBytes(heap.total)} |\n`;
+      }
+
+      markdown += '\n';
+    }
   }
 
   return markdown;

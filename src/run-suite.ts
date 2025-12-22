@@ -1,7 +1,7 @@
 import {readdir} from 'node:fs/promises';
 import {join, basename} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {bench, run, barplot, summary} from 'mitata';
+import {bench, run} from 'mitata';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
@@ -42,7 +42,7 @@ async function runSuite(suiteFile: string): Promise<void> {
   }
 
   await run({
-    format: 'markdown'
+    format: 'json'
   });
 }
 
