@@ -23,7 +23,8 @@
     "format": "prettier --write src",
     "lint": "npm run lint:js && npm run lint:format",
     "lint:js": "eslint src",
-    "lint:format": "prettier --check src"
+    "lint:format": "prettier --check src",
+    "update-readme": "node src/scripts/update-readme.ts"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
