@@ -35,13 +35,20 @@ async function runBenchmark(
 
   if (engine === 'node') {
     command = 'node';
-    args = ['--expose-gc', cliPath, suiteName];
+    args = ['--expose-gc', cliPath, suiteName, '--json'];
   } else if (engine === 'bun') {
     command = 'bun';
-    args = ['--expose-gc', cliPath, suiteName];
+    args = ['--expose-gc', cliPath, suiteName, '--json'];
   } else {
     command = 'deno';
-    args = ['run', '--allow-all', '--v8-flags=--expose-gc', cliPath, suiteName];
+    args = [
+      'run',
+      '--allow-all',
+      '--v8-flags=--expose-gc',
+      cliPath,
+      suiteName,
+      '--json'
+    ];
   }
 
   return new Promise((resolve, reject) => {
