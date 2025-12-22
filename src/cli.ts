@@ -14,7 +14,7 @@ async function getSuiteFiles(suiteName?: string): Promise<string[]> {
   if (suiteName) {
     return tsFiles.filter((f) => {
       const name = basename(f, '.ts');
-      return name === suiteName || name.includes(suiteName);
+      return name === suiteName;
     });
   }
 
@@ -27,7 +27,6 @@ function isFunction(value: unknown): value is (...args: unknown[]) => unknown {
 
 async function runSuite(suiteFile: string): Promise<void> {
   const suitePath = join(__dirname, 'benchmarks', suiteFile);
-  const suiteName = basename(suiteFile, '.ts');
   const module = await import(suitePath);
 
   const functionExports = Object.entries(module).filter(
@@ -37,8 +36,6 @@ async function runSuite(suiteFile: string): Promise<void> {
   if (functionExports.length === 0) {
     return;
   }
-
-  console.log(`\n### ${suiteName} ###\n`);
 
   barplot(() => {
     summary(() => {
