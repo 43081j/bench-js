@@ -51,7 +51,7 @@ async function runBenchmark(
   engine: Engine,
   suiteName: string
 ): Promise<string> {
-  const cliPath = join(__dirname, 'cli.ts');
+  const cliPath = join(__dirname, 'run-suite.ts');
   const config = getEngineConfig(engine, cliPath);
   const args = [...config.args, suiteName];
 
