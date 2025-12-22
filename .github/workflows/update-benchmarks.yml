@@ -40,14 +40,32 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Update README with benchmark results
-        run: npm run update-readme
+      - name: Get changed benchmark files
+        id: changed-files
+        run: |
+          # Get the list of changed files in src/benchmarks/ compared to main
+          CHANGED_FILES=$(git diff --name-only origin/main...HEAD -- 'src/benchmarks/*.ts' || true)
+
+          if [ -z "$CHANGED_FILES" ]; then
+            echo "No benchmark files changed"
+            echo "suites=" >> $GITHUB_OUTPUT
+          else
+            SUITES=$(echo "$CHANGED_FILES" | sed 's|src/benchmarks/||g' | sed 's|\.ts$||g' | tr '\n' ' ')
+            echo "Changed suites: $SUITES"
+            echo "suites=$SUITES" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Update benchmark results
+        if: steps.changed-files.outputs.suites != ''
+        run: |
+          npm run update-readme -- ${{ steps.changed-files.outputs.suites }}
 
       - name: Commit and push changes
+        if: steps.changed-files.outputs.suites != ''
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git add README.md
+          git add README.md results/
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
