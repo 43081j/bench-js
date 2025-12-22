@@ -37,15 +37,13 @@ async function runSuite(suiteFile: string): Promise<void> {
     return;
   }
 
-  barplot(() => {
-    summary(() => {
-      for (const [name, fn] of functionExports) {
-        bench(name, fn as () => void);
-      }
-    });
-  });
+  for (const [name, fn] of functionExports) {
+    bench(name, fn as () => void);
+  }
 
-  await run();
+  await run({
+    format: 'markdown'
+  });
 }
 
 async function main() {

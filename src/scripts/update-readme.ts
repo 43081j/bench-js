@@ -1,5 +1,3 @@
-#!/usr/bin/env node
-
 import {spawn} from 'node:child_process';
 import {readdir, readFile, writeFile} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
@@ -64,6 +62,53 @@ async function runBenchmark(
   });
 }
 
+interface ParsedTable {
+  header: string;
+  separator: string;
+  dataRows: string[];
+}
+
+function parseMarkdownTable(markdown: string, engineName: string): ParsedTable {
+  const lines = markdown.trim().split('\n');
+  const dataRows: string[] = [];
+  let header = '';
+  let separator = '';
+  let tableStartIndex = -1;
+
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].trim().startsWith('|')) {
+      tableStartIndex = i;
+      break;
+    }
+  }
+
+  if (tableStartIndex === -1) {
+    return {header, separator, dataRows};
+  }
+
+  header = lines[tableStartIndex].trim();
+
+  if (tableStartIndex + 1 < lines.length) {
+    separator = lines[tableStartIndex + 1].trim();
+  }
+
+  for (let i = tableStartIndex + 2; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (line.startsWith('|')) {
+      const columns = line
+        .split('|')
+        .map((col) => col.trim())
+        .filter((col) => col);
+      if (columns.length > 0) {
+        columns[0] = `${columns[0]} (${engineName})`;
+        dataRows.push(`| ${columns.join(' | ')} |`);
+      }
+    }
+  }
+
+  return {header, separator, dataRows};
+}
+
 function formatResultsAsMarkdown(
   suites: string[],
   results: BenchmarkResult[]
@@ -74,8 +119,21 @@ function formatResultsAsMarkdown(
   for (const suite of suites) {
     markdown += `## ${suite}\n\n`;
 
-    markdown += '| Engine | Results |\n';
-    markdown += '|--------|----------|\n';
+    let header = '';
+    let separator = '';
+
+    const firstResult = results.find((r) => r.suite === suite);
+    if (firstResult) {
+      // just in case
+      const cleanOutput = stripVTControlCharacters(firstResult.output);
+      const parsed = parseMarkdownTable(cleanOutput, 'temp');
+      header = parsed.header;
+      separator = parsed.separator;
+    }
+
+    if (header && separator) {
+      markdown += `${header}\n${separator}\n`;
+    }
 
     for (const engine of engines) {
       const result = results.find(
@@ -84,12 +142,8 @@ function formatResultsAsMarkdown(
 
       if (result) {
         const cleanOutput = stripVTControlCharacters(result.output);
-        const escapedOutput = cleanOutput
-          .replace(/\|/g, '\\|')
-          .replace(/\n/g, '<br>');
-        markdown += `| ${engine} | <pre>${escapedOutput}</pre> |\n`;
-      } else {
-        markdown += `| ${engine} | _N/A_ |\n`;
+        const parsed = parseMarkdownTable(cleanOutput, engine);
+        markdown += parsed.dataRows.join('\n') + '\n';
       }
     }
 
