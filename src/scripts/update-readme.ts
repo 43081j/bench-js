@@ -1,5 +1,5 @@
 import {spawn} from 'node:child_process';
-import {readdir, readFile, writeFile} from 'node:fs/promises';
+import {readdir, readFile, writeFile, mkdir} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import {join, basename} from 'node:path';
 import {stripVTControlCharacters} from 'node:util';
@@ -121,120 +121,144 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }
 
-function formatResultsAsMarkdown(
-  suites: string[],
+function formatSuiteAsMarkdown(
+  suite: string,
   results: BenchmarkResult[]
 ): string {
-  let markdown = '';
+  let markdown = `# ${suite}\n\n`;
 
-  for (const suite of suites) {
-    markdown += `## ${suite}\n\n`;
+  const rows: BenchmarkRow[] = [];
 
-    const rows: BenchmarkRow[] = [];
+  for (const engine of ENGINES) {
+    const result = results.find(
+      (r) => r.suite === suite && r.engine === engine
+    );
 
-    for (const engine of ENGINES) {
-      const result = results.find(
-        (r) => r.suite === suite && r.engine === engine
-      );
-
-      if (result) {
-        const parsed = parseJSONOutput(result.output);
-        if (parsed?.benchmarks) {
-          for (const benchmark of parsed.benchmarks) {
-            rows.push({engine, benchmark});
-          }
+    if (result) {
+      const parsed = parseJSONOutput(result.output);
+      if (parsed?.benchmarks) {
+        for (const benchmark of parsed.benchmarks) {
+          rows.push({engine, benchmark});
         }
       }
     }
+  }
 
-    // Sort by avg time ascending (fastest first)
-    rows.sort((a, b) => {
-      const aStats = a.benchmark.runs[0]?.stats;
-      const bStats = b.benchmark.runs[0]?.stats;
-      return (aStats?.avg ?? 0) - (bStats?.avg ?? 0);
+  // Sort by avg time ascending (fastest first)
+  rows.sort((a, b) => {
+    const aStats = a.benchmark.runs[0]?.stats;
+    const bStats = b.benchmark.runs[0]?.stats;
+    return (aStats?.avg ?? 0) - (bStats?.avg ?? 0);
+  });
+
+  markdown += '## Performance\n\n';
+  markdown += '| benchmark | avg | min | p75 | p99 | max |\n';
+  markdown += '| :-------- | --: | --: | --: | --: | --: |\n';
+
+  for (const row of rows) {
+    const run = row.benchmark.runs[0];
+    if (!run?.stats) continue;
+
+    const nameWithEngine = `${run.name} (${row.engine})`;
+    const stats = run.stats;
+    markdown += `| ${nameWithEngine} | ${formatTime(stats.avg)} | ${formatTime(stats.min)} | ${formatTime(stats.p75)} | ${formatTime(stats.p99)} | ${formatTime(stats.max)} |\n`;
+  }
+
+  markdown += '\n';
+
+  const rowsWithHeap = rows.filter((row) => row.benchmark.runs[0]?.stats?.heap);
+  if (rowsWithHeap.length > 0) {
+    rowsWithHeap.sort((a, b) => {
+      const aHeap = a.benchmark.runs[0]?.stats?.heap;
+      const bHeap = b.benchmark.runs[0]?.stats?.heap;
+      return (aHeap?.avg ?? 0) - (bHeap?.avg ?? 0);
     });
 
-    // Generate timing table
-    markdown += '| benchmark | avg | min | p75 | p99 | max |\n';
-    markdown += '| :-------- | --: | --: | --: | --: | --: |\n';
+    markdown += '## Memory\n\n';
+    markdown += '| benchmark | avg | min | max | total |\n';
+    markdown += '| :-------- | --: | --: | --: | ----: |\n';
 
-    for (const row of rows) {
+    for (const row of rowsWithHeap) {
       const run = row.benchmark.runs[0];
-      if (!run?.stats) continue;
+      const heap = run?.stats?.heap;
+      if (!heap) continue;
 
       const nameWithEngine = `${run.name} (${row.engine})`;
-      const stats = run.stats;
-      markdown += `| ${nameWithEngine} | ${formatTime(stats.avg)} | ${formatTime(stats.min)} | ${formatTime(stats.p75)} | ${formatTime(stats.p99)} | ${formatTime(stats.max)} |\n`;
+      markdown += `| ${nameWithEngine} | ${formatBytes(heap.avg)} | ${formatBytes(heap.min)} | ${formatBytes(heap.max)} | ${formatBytes(heap.total)} |\n`;
     }
 
     markdown += '\n';
-
-    // Generate memory table if heap data is available
-    const rowsWithHeap = rows.filter(
-      (row) => row.benchmark.runs[0]?.stats?.heap
-    );
-    if (rowsWithHeap.length > 0) {
-      // Sort by avg heap usage ascending
-      rowsWithHeap.sort((a, b) => {
-        const aHeap = a.benchmark.runs[0]?.stats?.heap;
-        const bHeap = b.benchmark.runs[0]?.stats?.heap;
-        return (aHeap?.avg ?? 0) - (bHeap?.avg ?? 0);
-      });
-
-      markdown += '### Memory\n\n';
-      markdown += '| benchmark | avg | min | max | total |\n';
-      markdown += '| :-------- | --: | --: | --: | ----: |\n';
-
-      for (const row of rowsWithHeap) {
-        const run = row.benchmark.runs[0];
-        const heap = run?.stats?.heap;
-        if (!heap) continue;
-
-        const nameWithEngine = `${run.name} (${row.engine})`;
-        markdown += `| ${nameWithEngine} | ${formatBytes(heap.avg)} | ${formatBytes(heap.min)} | ${formatBytes(heap.max)} | ${formatBytes(heap.total)} |\n`;
-      }
-
-      markdown += '\n';
-    }
   }
 
   return markdown;
 }
 
-async function updateReadme(benchmarkResults: string): Promise<void> {
+async function writeSuiteResult(
+  suite: string,
+  results: BenchmarkResult[]
+): Promise<void> {
+  const resultsDir = join(__dirname, '../../results');
+  await mkdir(resultsDir, {recursive: true});
+
+  const markdown = formatSuiteAsMarkdown(suite, results);
+  const resultPath = join(resultsDir, `${suite}.md`);
+
+  await writeFile(resultPath, markdown, 'utf-8');
+  console.log(`  ✓ Written results/${suite}.md`);
+}
+
+async function updateReadmeIndex(allSuites: string[]): Promise<void> {
   const readmePath = join(__dirname, '../../README.md');
   const content = await readFile(readmePath, 'utf-8');
 
-  const markerIndex = content.indexOf('<!-- BENCH -->');
-  if (markerIndex === -1) {
-    throw new Error('<!-- BENCH --> marker not found in README.md');
+  const startMarker = '<!-- RESULTS -->';
+  const endMarker = '<!-- /RESULTS -->';
+
+  const startIndex = content.indexOf(startMarker);
+  const endIndex = content.indexOf(endMarker);
+
+  if (startIndex === -1 || endIndex === -1) {
+    throw new Error(
+      '<!-- RESULTS --> and <!-- /RESULTS --> markers not found in README.md'
+    );
   }
 
-  const beforeMarker = content.substring(
-    0,
-    markerIndex + '<!-- BENCH -->'.length
-  );
-  const newContent = beforeMarker + '\n\n' + benchmarkResults;
+  let indexMarkdown = '';
+  for (const suite of allSuites) {
+    indexMarkdown += `- [${suite}](./results/${suite}.md)\n`;
+  }
+
+  const beforeMarker = content.substring(0, startIndex + startMarker.length);
+  const afterMarker = content.substring(endIndex);
+  const newContent = beforeMarker + '\n\n' + indexMarkdown + '\n' + afterMarker;
 
   await writeFile(readmePath, newContent, 'utf-8');
 }
 
 async function main() {
-  console.log('Getting suite names...');
-  const suites = await getSuiteNames();
-  console.log(`Found ${suites.length} suites: ${suites.join(', ')}\n`);
+  const args = process.argv.slice(2);
+  const allSuites = await getSuiteNames();
+  const suitesToRun = args.length > 0 ? args : allSuites;
+
+  console.log(`Running benchmarks for: ${suitesToRun.join(', ')}\n`);
 
   const results: BenchmarkResult[] = [];
 
-  for (const suite of suites) {
+  for (const suite of suitesToRun) {
+    if (!allSuites.includes(suite)) {
+      console.error(`✗ Suite "${suite}" not found, skipping`);
+      continue;
+    }
+
+    console.log(`\n=== ${suite} ===`);
     for (const engine of ENGINES) {
-      console.log(`Running ${suite} on ${engine}...`);
+      console.log(`Running on ${engine}...`);
       try {
         const output = await runBenchmark(engine, suite);
         results.push({suite, engine, output});
-        console.log(`✓ ${suite} on ${engine} completed\n`);
+        console.log(`  ✓ ${engine} completed`);
       } catch (err) {
-        console.error(`✗ ${suite} on ${engine} failed:`, err);
+        console.error(`  ✗ ${engine} failed:`, err);
         results.push({
           suite,
           engine,
@@ -242,15 +266,16 @@ async function main() {
         });
       }
     }
+
+    // Write result file for this suite
+    const suiteResults = results.filter((r) => r.suite === suite);
+    await writeSuiteResult(suite, suiteResults);
   }
 
-  console.log('Formatting results...');
-  const markdown = formatResultsAsMarkdown(suites, results);
+  console.log('\nUpdating README.md index...');
+  await updateReadmeIndex(allSuites);
 
-  console.log('Updating README.md...');
-  await updateReadme(markdown);
-
-  console.log('✓ README.md updated successfully!');
+  console.log('✓ Done!');
 }
 
 main().catch((err) => {
