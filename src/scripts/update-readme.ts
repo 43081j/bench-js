@@ -7,7 +7,9 @@ import type {trial, ctx} from 'mitata';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
-type Engine = 'node' | 'bun';
+type Engine = 'node' | 'bun' | 'deno';
+
+const ENGINES: Engine[] = ['node', 'bun', 'deno'];
 
 interface BenchmarkResult {
   suite: string;
@@ -27,11 +29,20 @@ async function runBenchmark(
   suiteName: string
 ): Promise<string> {
   const cliPath = join(__dirname, '../run-suite.ts');
-  const command = engine === 'node' ? 'node' : 'bun';
-  const args =
-    engine === 'node'
-      ? ['--expose-gc', cliPath, suiteName]
-      : ['--expose-gc', cliPath, suiteName];
+
+  let command: string;
+  let args: string[];
+
+  if (engine === 'node') {
+    command = 'node';
+    args = ['--expose-gc', cliPath, suiteName];
+  } else if (engine === 'bun') {
+    command = 'bun';
+    args = ['--expose-gc', cliPath, suiteName];
+  } else {
+    command = 'deno';
+    args = ['run', '--allow-all', '--v8-flags=--expose-gc', cliPath, suiteName];
+  }
 
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
@@ -114,7 +125,6 @@ function formatResultsAsMarkdown(
   suites: string[],
   results: BenchmarkResult[]
 ): string {
-  const engines: Engine[] = ['node', 'bun'];
   let markdown = '';
 
   for (const suite of suites) {
@@ -122,7 +132,7 @@ function formatResultsAsMarkdown(
 
     const rows: BenchmarkRow[] = [];
 
-    for (const engine of engines) {
+    for (const engine of ENGINES) {
       const result = results.find(
         (r) => r.suite === suite && r.engine === engine
       );
@@ -214,11 +224,10 @@ async function main() {
   const suites = await getSuiteNames();
   console.log(`Found ${suites.length} suites: ${suites.join(', ')}\n`);
 
-  const engines: Engine[] = ['node', 'bun'];
   const results: BenchmarkResult[] = [];
 
   for (const suite of suites) {
-    for (const engine of engines) {
+    for (const engine of ENGINES) {
       console.log(`Running ${suite} on ${engine}...`);
       try {
         const output = await runBenchmark(engine, suite);
