@@ -4,21 +4,21 @@
 
 | benchmark | avg | min | p75 | p99 | max |
 | :-------- | --: | --: | --: | --: | --: |
-| arrayConcat (bun) | 1.12 µs | 943.76 ns | 1.19 µs | 1.50 µs | 1.57 µs |
-| arrayConcat (deno) | 1.19 µs | 1.15 µs | 1.20 µs | 1.34 µs | 1.36 µs |
-| arrayConcat (node) | 1.48 µs | 1.40 µs | 1.50 µs | 1.64 µs | 1.73 µs |
-| arraySpread (deno) | 5.00 µs | 4.53 µs | 4.67 µs | 5.20 µs | 14.15 µs |
-| arraySpread (node) | 5.06 µs | 4.59 µs | 4.72 µs | 5.08 µs | 14.13 µs |
-| arraySpread (bun) | 5.48 µs | 4.48 µs | 5.72 µs | 7.50 µs | 7.71 µs |
+| arrayConcat (bun) | 1.07 µs | 923.60 ns | 1.09 µs | 1.87 µs | 1.96 µs |
+| arrayConcat (deno) | 1.20 µs | 1.17 µs | 1.20 µs | 1.28 µs | 1.32 µs |
+| arrayConcat (node) | 1.35 µs | 1.33 µs | 1.36 µs | 1.44 µs | 1.48 µs |
+| arraySpread (bun) | 4.37 µs | 4.13 µs | 4.44 µs | 4.92 µs | 5.03 µs |
+| arraySpread (deno) | 4.76 µs | 4.34 µs | 4.42 µs | 5.18 µs | 13.78 µs |
+| arraySpread (node) | 4.83 µs | 4.42 µs | 4.51 µs | 4.97 µs | 14.00 µs |
 
 ## Memory
 
 | benchmark | avg | min | max | total |
 | :-------- | --: | --: | --: | ----: |
-| arrayConcat (deno) | 1.71 B | 0.0000 B | 201.95 B | 215.97 B |
-| arrayConcat (bun) | 5.84 B | 0.0000 B | 800.00 B | 864.00 B |
-| arrayConcat (node) | 83.33 B | 3.72 B | 236.71 B | 249.99 B |
-| arraySpread (bun) | 144.64 B | 0.0000 B | 1.88 KB | 3.53 KB |
-| arraySpread (node) | 6.47 KB | 6.40 KB | 7.67 KB | 116.54 KB |
-| arraySpread (deno) | 6.53 KB | 5.91 KB | 7.76 KB | 45.73 KB |
+| arrayConcat (deno) | 1.66 B | 0.0000 B | 193.07 B | 207.10 B |
+| arrayConcat (node) | 6.63 B | 3.72 B | 9.54 B | 13.27 B |
+| arrayConcat (bun) | 58.63 B | 0.0000 B | 5.16 KB | 8.70 KB |
+| arraySpread (bun) | 69.49 B | 0.0000 B | 1.00 KB | 2.38 KB |
+| arraySpread (node) | 6.48 KB | 6.40 KB | 7.69 KB | 116.55 KB |
+| arraySpread (deno) | 6.50 KB | 5.92 KB | 7.53 KB | 45.51 KB |
 

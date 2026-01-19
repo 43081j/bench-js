@@ -4,21 +4,21 @@
 
 | benchmark | avg | min | p75 | p99 | max |
 | :-------- | --: | --: | --: | --: | --: |
-| arrayFrom (deno) | 533.77 ns | 500.51 ns | 541.31 ns | 648.98 ns | 674.28 ns |
-| arraySpread (deno) | 559.15 ns | 505.30 ns | 564.53 ns | 984.29 ns | 1.12 µs |
-| arraySpread (node) | 585.50 ns | 544.47 ns | 598.24 ns | 648.35 ns | 650.44 ns |
-| arrayFrom (node) | 599.44 ns | 550.42 ns | 611.47 ns | 700.56 ns | 706.05 ns |
-| arrayFrom (bun) | 772.79 ns | 699.04 ns | 783.68 ns | 1.09 µs | 1.31 µs |
-| arraySpread (bun) | 1.11 µs | 1.02 µs | 1.13 µs | 1.24 µs | 1.33 µs |
+| arraySpread (deno) | 451.74 ns | 416.54 ns | 466.70 ns | 524.83 ns | 542.80 ns |
+| arrayFrom (deno) | 452.08 ns | 415.62 ns | 464.38 ns | 542.70 ns | 553.60 ns |
+| arraySpread (node) | 579.00 ns | 541.64 ns | 590.99 ns | 639.87 ns | 659.40 ns |
+| arrayFrom (node) | 583.07 ns | 547.27 ns | 593.59 ns | 652.64 ns | 679.39 ns |
+| arrayFrom (bun) | 917.04 ns | 748.41 ns | 1.03 µs | 1.34 µs | 1.38 µs |
+| arraySpread (bun) | 1.42 µs | 1.11 µs | 1.93 µs | 2.04 µs | 2.08 µs |
 
 ## Memory
 
 | benchmark | avg | min | max | total |
 | :-------- | --: | --: | --: | ----: |
-| arraySpread (bun) | 15.46 B | 0.0000 B | 864.00 B | 2.22 KB |
-| arrayFrom (bun) | 17.19 B | 0.0000 B | 1.63 KB | 3.63 KB |
-| arrayFrom (deno) | 17.62 B | 0.0000 B | 146.05 B | 229.04 B |
-| arraySpread (deno) | 349.50 B | 0.0000 B | 8.00 KB | 8.19 KB |
-| arraySpread (node) | 8.00 KB | 7.85 KB | 8.00 KB | 1.16 MB |
-| arrayFrom (node) | 8.00 KB | 8.00 KB | 8.14 KB | 1.13 MB |
+| arrayFrom (deno) | 5.97 B | 0.0000 B | 215.08 B | 262.57 B |
+| arraySpread (bun) | 8.95 B | 0.0000 B | 736.00 B | 1.03 KB |
+| arrayFrom (bun) | 34.17 B | 0.0000 B | 5.75 KB | 5.91 KB |
+| arraySpread (deno) | 291.58 B | 0.0000 B | 8.00 KB | 8.26 KB |
+| arrayFrom (node) | 8.00 KB | 7.77 KB | 8.14 KB | 1.16 MB |
+| arraySpread (node) | 8.00 KB | 7.99 KB | 8.01 KB | 1.17 MB |
 
